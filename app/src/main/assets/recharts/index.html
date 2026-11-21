@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PitStop Monthly Recharts Breakdown</title>
+  <style>
+    :root {
+      --bg-color: #12141a;
+      --card-bg: #1c202a;
+      --card-subtle: #242937;
+      --card-border: #2c3346;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --fuel-color: #10b981;
+      --service-color: #3b82f6;
+      --parts-color: #a855f7;
+      --other-color: #f59e0b;
+      --accent-orange: #ff7844;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      padding: 12px 14px 40px 14px;
+      overflow-x: hidden;
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 4px 2px;
+    }
+
+    .vehicle-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 120, 68, 0.15);
+      color: var(--accent-orange);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid rgba(255, 120, 68, 0.3);
+    }
+
+    .chart-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .control-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .chip-btn {
+      background: var(--card-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chip-btn.active {
+      background: rgba(255, 120, 68, 0.2);
+      color: #fff;
+      border-color: var(--accent-orange);
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .kpi-val {
+      font-size: 20px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .fuel-badge {
+      color: var(--fuel-color);
+      font-weight: 600;
+    }
+
+    .chart-container-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 14px 10px 10px 4px;
+      margin-bottom: 16px;
+      position: relative;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    }
+
+    .chart-header {
+      padding: 0 10px 10px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chart-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chart-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      font-weight: 600;
+    }
+
+    .recharts-custom-tooltip {
+      background: rgba(24, 28, 38, 0.95);
+      border: 1px solid #3e475d;
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      min-width: 170px;
+    }
+
+    .tooltip-header {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      margin: 3px 0;
+    }
+
+    .tooltip-row span.label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #cbd5e1;
+    }
+
+    .tooltip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .tooltip-row span.val {
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .month-list-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin: 16px 2px 8px 2px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .month-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .month-card.selected {
+      border-color: var(--accent-orange);
+      background: rgba(255, 120, 68, 0.05);
+    }
+
+    .month-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .month-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .month-total {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--accent-orange);
+    }
+
+    .progress-bar-container {
+      height: 8px;
+      border-radius: 4px;
+      background: var(--card-subtle);
+      overflow: hidden;
+      display: flex;
+      margin-bottom: 8px;
+    }
+
+    .progress-segment {
+      height: 100%;
+    }
+
+    .month-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #cbd5e1;
+      background: var(--card-subtle);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .actions-footer {
+      display: flex;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .action-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: transform 0.1s ease;
+    }
+
+    .action-btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-fuel {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--fuel-color);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-service {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.4);
+    }
+
+    .btn-seed {
+      background: rgba(255, 120, 68, 0.18);
+      color: var(--accent-orange);
+      border: 1px solid rgba(255, 120, 68, 0.4);
+    }
+
+    .empty-state {
+      padding: 30px 16px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Recharts and React local UMD Assets -->
+  <script src="react.production.min.js"></script>
+  <script src="prop-types.min.js"></script>
+  <script src="react-dom.production.min.js"></script>
+  <script src="recharts.min.js"></script>
+
+  <script>
+    (function () {
+      const e = React.createElement;
+      const {
+        ResponsiveContainer,
+        BarChart,
+        Bar,
+        XAxis,
+        YAxis,
+        CartesianGrid,
+        Tooltip,
+        Legend,
+        AreaChart,
+        Area
+      } = window.Recharts || {};
+
+      // Fallback sample data in case no data is supplied yet
+      const sampleMonthlyData = [
+        { monthKey: "2026-05", month: "May '26", fullName: "May 2026", fuel: 52.40, service: 0.0, parts: 0.0, other: 15.0, total: 67.40, fuelLiters: 28.5, fuelEntries: 2 },
+        { monthKey: "2026-06", month: "Jun '26", fullName: "June 2026", fuel: 64.20, service: 45.0, parts: 22.0, other: 0.0, total: 131.20, fuelLiters: 34.0, fuelEntries: 3 },
+        { monthKey: "2026-07", month: "Jul '26", fullName: "July 2026", fuel: 78.50, service: 0.0, parts: 0.0, other: 25.0, total: 103.50, fuelLiters: 41.2, fuelEntries: 4 },
+        { monthKey: "2026-08", month: "Aug '26", fullName: "August 2026", fuel: 58.10, service: 0.0, parts: 0.0, other: 140.0, total: 198.10, fuelLiters: 31.0, fuelEntries: 2 },
+        { monthKey: "2026-09", month: "Sep '26", fullName: "September 2026", fuel: 71.30, service: 185.0, parts: 48.0, other: 0.0, total: 304.30, fuelLiters: 38.6, fuelEntries: 3 },
+        { monthKey: "2026-10", month: "Oct '26", fullName: "October 2026", fuel: 44.03, service: 0.0, parts: 0.0, other: 0.0, total: 44.03, fuelLiters: 24.0, fuelEntries: 2 }
+      ];
+
+      function formatMoney(amount, currency) {
+        return (currency || "$") + Number(amount || 0).toFixed(2);
+      }
+
+      function CustomTooltip({ active, payload, label, currency }) {
+        if (!active || !payload || !payload.length) return null;
+        const data = payload[0].payload;
+        const total = data.total || 0;
+        const fuel = data.fuel || 0;
+        const service = data.service || 0;
+        const parts = data.parts || 0;
+        const other = data.other || 0;
+
+        return e('div', { className: 'recharts-custom-tooltip' },
+          e('div', { className: 'tooltip-header' },
+            e('span', null, data.fullName || label),
+            e('span', { style: { color: 'var(--accent-orange)' } }, formatMoney(total, currency))
+          ),
+          e('div', { className: 'tooltip-row' },
+            e('span', { className: 'label' },
+              e('span', { className: 'tooltip-dot', style: { background: 'var(--fuel-color)' } }),
+              'Fuel Costs'
+            ),
+            e('span', { className: 'val' },
+              formatMoney(fuel, currency) + (total > 0 ? ` (${Math.round((fuel/total)*100)}%)` : '')
+            )
+          ),
+          e('div', { className: 'tooltip-row' },
+            e('span', { className: 'label' },
+              e('span', { className: 'tooltip-dot', style: { background: 'var(--service-color)' } }),
+              'Service & Labor'
+            ),
+            e('span', { className: 'val' },
+              formatMoney(service, currency) + (total > 0 ? ` (${Math.round((service/total)*100)}%)` : '')
+            )
+          ),
+          parts > 0 && e('div', { className: 'tooltip-row' },
+            e('span', { className: 'label' },
+              e('span', { className: 'tooltip-dot', style: { background: 'var(--parts-color)' } }),
+              'Parts & Spares'
+            ),
+            e('span', { className: 'val' },
+              formatMoney(parts, currency) + ` (${Math.round((parts/total)*100)}%)`
+            )
+          ),
+          other > 0 && e('div', { className: 'tooltip-row' },
+            e('span', { className: 'label' },
+              e('span', { className: 'tooltip-dot', style: { background: 'var(--other-color)' } }),
+              'Other / Tax'
+            ),
+            e('span', { className: 'val' },
+              formatMoney(other, currency) + ` (${Math.round((other/total)*100)}%)`
+            )
+          ),
+          data.fuelLiters > 0 && e('div', { className: 'tooltip-row', style: { marginTop: '4px', borderTop: '1px dashed #333d52', paddingTop: '3px' } },
+            e('span', { className: 'label', style: { color: '#94a3b8' } }, '⛽ Fuel Filled:'),
+            e('span', { className: 'val', style: { color: 'var(--fuel-color)' } }, `${data.fuelLiters.toFixed(1)} L`)
+          )
+        );
+      }
+
+      function App() {
+        const [monthlyData, setMonthlyData] = React.useState(sampleMonthlyData);
+        const [timeRange, setTimeRange] = React.useState("6M"); // "6M", "12M", "ALL"
+        const [chartType, setChartType] = React.useState("stacked"); // "stacked", "grouped", "trend"
+        const [selectedMonth, setSelectedMonth] = React.useState(null);
+        const [vehicleName, setVehicleName] = React.useState("Motorcycle");
+        const [currency, setCurrency] = React.useState("$");
+
+        // Load data on mount & register global receiver
+        React.useEffect(() => {
+          function loadFromBridge() {
+            try {
+              if (window.AndroidBridge && window.AndroidBridge.getMonthlyDataJson) {
+                const rawJson = window.AndroidBridge.getMonthlyDataJson();
+                if (rawJson) {
+                  const parsed = JSON.parse(rawJson);
+                  if (Array.isArray(parsed) && parsed.length > 0) {
+                    setMonthlyData(parsed);
+                  }
+                }
+              }
+              if (window.AndroidBridge && window.AndroidBridge.getVehicleInfoJson) {
+                const vehJson = window.AndroidBridge.getVehicleInfoJson();
+                if (vehJson) {
+                  const veh = JSON.parse(vehJson);
+                  if (veh.name) setVehicleName(veh.name);
+                  if (veh.currency) setCurrency(veh.currency);
+                }
+              }
+            } catch (err) {
+              console.error("Bridge load error:", err);
+            }
+          }
+
+          loadFromBridge();
+
+          // Expose live update function for Android Kotlin Flow updates
+          window.updateMonthlyData = function(jsonStr, vehName, curr) {
+            try {
+              if (jsonStr) {
+                const parsed = JSON.parse(jsonStr);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  setMonthlyData(parsed);
+                }
+              }
+              if (vehName) setVehicleName(vehName);
+              if (curr) setCurrency(curr);
+            } catch (e) {
+              console.error("Failed to parse live update:", e);
+            }
+          };
+        }, []);
+
+        // Filter data based on timeRange
+        const filteredData = React.useMemo(() => {
+          if (!monthlyData || monthlyData.length === 0) return [];
+          if (timeRange === "6M") {
+            return monthlyData.slice(-6);
+          } else if (timeRange === "12M") {
+            return monthlyData.slice(-12);
+          }
+          return monthlyData;
+        }, [monthlyData, timeRange]);
+
+        // Aggregate statistics for the filtered range
+        const stats = React.useMemo(() => {
+          let totalOverall = 0;
+          let totalFuel = 0;
+          let totalService = 0;
+          let totalParts = 0;
+          let totalOther = 0;
+          let totalLiters = 0;
+          let peakMonth = null;
+          let peakVal = -1;
+
+          filteredData.forEach(item => {
+            totalOverall += (item.total || 0);
+            totalFuel += (item.fuel || 0);
+            totalService += (item.service || 0);
+            totalParts += (item.parts || 0);
+            totalOther += (item.other || 0);
+            totalLiters += (item.fuelLiters || 0);
+
+            if ((item.total || 0) > peakVal) {
+              peakVal = item.total || 0;
+              peakMonth = item.fullName || item.month;
+            }
+          });
+
+          const count = filteredData.length || 1;
+          const avgTotal = totalOverall / count;
+          const avgFuel = totalFuel / count;
+          const fuelPct = totalOverall > 0 ? (totalFuel / totalOverall) * 100 : 0;
+
+          return {
+            totalOverall,
+            totalFuel,
+            totalService,
+            totalParts,
+            totalOther,
+            totalLiters,
+            avgTotal,
+            avgFuel,
+            fuelPct,
+            peakMonth,
+            peakVal
+          };
+        }, [filteredData]);
+
+        return e('div', null,
+          // Header Bar
+          e('div', { className: 'header-bar' },
+            e('div', { className: 'vehicle-pill' },
+              e('span', null, '🏍️'),
+              e('span', null, vehicleName)
+            ),
+            e('span', { style: { fontSize: '11px', color: 'var(--text-muted)' } },
+              'Powered by Recharts'
+            )
+          ),
+
+          // Control Filter Rows
+          e('div', { className: 'chart-controls' },
+            // Time Range Controls
+            e('div', { className: 'control-row' },
+              e('button', {
+                className: `chip-btn ${timeRange === "6M" ? "active" : ""}`,
+                onClick: () => setTimeRange("6M")
+              }, 'Last 6 Months'),
+              e('button', {
+                className: `chip-btn ${timeRange === "12M" ? "active" : ""}`,
+                onClick: () => setTimeRange("12M")
+              }, 'Last 12 Months'),
+              e('button', {
+                className: `chip-btn ${timeRange === "ALL" ? "active" : ""}`,
+                onClick: () => setTimeRange("ALL")
+              }, 'All Months')
+            ),
+
+            // View Mode Controls
+            e('div', { className: 'control-row' },
+              e('button', {
+                className: `chip-btn ${chartType === "stacked" ? "active" : ""}`,
+                onClick: () => setChartType("stacked")
+              }, '📊 Stacked Breakdown'),
+              e('button', {
+                className: `chip-btn ${chartType === "grouped" ? "active" : ""}`,
+                onClick: () => setChartType("grouped")
+              }, '📶 Fuel vs Other'),
+              e('button', {
+                className: `chip-btn ${chartType === "trend" ? "active" : ""}`,
+                onClick: () => setChartType("trend")
+              }, '📈 Spending Trend')
+            )
+          ),
+
+          // Top KPI Cards
+          e('div', { className: 'kpi-grid' },
+            // KPI 1: Total Spent
+            e('div', { className: 'kpi-card' },
+              e('div', { className: 'kpi-label' }, 'Total Spent (' + timeRange + ')'),
+              e('div', { className: 'kpi-val', style: { color: 'var(--accent-orange)' } },
+                formatMoney(stats.totalOverall, currency)
+              ),
+              e('div', { className: 'kpi-sub' },
+                `Avg: ${formatMoney(stats.avgTotal, currency)} / mo`
+              )
+            ),
+
+            // KPI 2: Fuel Spent & Share
+            e('div', { className: 'kpi-card' },
+              e('div', { className: 'kpi-label' }, 'Fuel Costs'),
+              e('div', { className: 'kpi-val', style: { color: 'var(--fuel-color)' } },
+                formatMoney(stats.totalFuel, currency)
+              ),
+              e('div', { className: 'kpi-sub' },
+                e('span', { className: 'fuel-badge' }, `${stats.fuelPct.toFixed(1)}%`),
+                'of total budget'
+              )
+            )
+          ),
+
+          // Main Recharts Chart Card
+          e('div', { className: 'chart-container-card' },
+            e('div', { className: 'chart-header' },
+              e('div', { className: 'chart-title' },
+                'Monthly Expenses & Fuel Breakdown',
+                e('span', { className: 'chart-badge' }, chartType.toUpperCase())
+              ),
+              stats.peakMonth && e('div', { style: { fontSize: '10px', color: 'var(--text-muted)' } },
+                `Peak: ${stats.peakMonth}`
+              )
+            ),
+
+            // Recharts Responsive Rendering
+            e('div', { style: { width: '100%', height: 260 } },
+              chartType === 'trend' ? (
+                // Area Chart Trend
+                e(ResponsiveContainer, { width: '100%', height: '100%' },
+                  e(AreaChart, {
+                    data: filteredData,
+                    margin: { top: 10, right: 10, left: -22, bottom: 0 }
+                  },
+                    e('defs', null,
+                      e('linearGradient', { id: 'colorTotal', x1: '0', y1: '0', x2: '0', y2: '1' },
+                        e('stop', { offset: '5%', stopColor: 'var(--accent-orange)', stopOpacity: 0.6 }),
+                        e('stop', { offset: '95%', stopColor: 'var(--accent-orange)', stopOpacity: 0.0 })
+                      ),
+                      e('linearGradient', { id: 'colorFuel', x1: '0', y1: '0', x2: '0', y2: '1' },
+                        e('stop', { offset: '5%', stopColor: 'var(--fuel-color)', stopOpacity: 0.6 }),
+                        e('stop', { offset: '95%', stopColor: 'var(--fuel-color)', stopOpacity: 0.0 })
+                      )
+                    ),
+                    e(CartesianGrid, { strokeDasharray: '3 3', stroke: '#262c3c' }),
+                    e(XAxis, { dataKey: 'month', stroke: '#64748b', fontSize: 11, tickLine: false }),
+                    e(YAxis, { stroke: '#64748b', fontSize: 11, tickFormatter: v => (currency || "$") + v }),
+                    e(Tooltip, { content: e(CustomTooltip, { currency: currency }) }),
+                    e(Legend, { wrapperStyle: { fontSize: 11, paddingTop: 4 } }),
+                    e(Area, {
+                      type: 'monotone',
+                      dataKey: 'total',
+                      name: 'Total Expense',
+                      stroke: 'var(--accent-orange)',
+                      fillOpacity: 1,
+                      fill: 'url(#colorTotal)',
+                      strokeWidth: 2
+                    }),
+                    e(Area, {
+                      type: 'monotone',
+                      dataKey: 'fuel',
+                      name: 'Fuel Costs',
+                      stroke: 'var(--fuel-color)',
+                      fillOpacity: 1,
+                      fill: 'url(#colorFuel)',
+                      strokeWidth: 2
+                    })
+                  )
+                )
+              ) : (
+                // BarChart (Stacked or Grouped)
+                e(ResponsiveContainer, { width: '100%', height: '100%' },
+                  e(BarChart, {
+                    data: filteredData,
+                    margin: { top: 10, right: 10, left: -22, bottom: 0 },
+                    onClick: (state) => {
+                      if (state && state.activePayload && state.activePayload[0]) {
+                        setSelectedMonth(state.activePayload[0].payload.monthKey);
+                      }
+                    }
+                  },
+                    e(CartesianGrid, { strokeDasharray: '3 3', stroke: '#262c3c' }),
+                    e(XAxis, { dataKey: 'month', stroke: '#64748b', fontSize: 11, tickLine: false }),
+                    e(YAxis, { stroke: '#64748b', fontSize: 11, tickFormatter: v => (currency || "$") + v }),
+                    e(Tooltip, { content: e(CustomTooltip, { currency: currency }) }),
+                    e(Legend, { wrapperStyle: { fontSize: 11, paddingTop: 4 } }),
+                    e(Bar, {
+                      dataKey: 'fuel',
+                      name: 'Fuel Costs',
+                      fill: 'var(--fuel-color)',
+                      stackId: chartType === 'stacked' ? 'a' : undefined,
+                      radius: chartType === 'stacked' ? [0, 0, 0, 0] : [4, 4, 0, 0]
+                    }),
+                    e(Bar, {
+                      dataKey: 'service',
+                      name: 'Service & Labor',
+                      fill: 'var(--service-color)',
+                      stackId: chartType === 'stacked' ? 'a' : undefined,
+                      radius: chartType === 'stacked' ? [0, 0, 0, 0] : [4, 4, 0, 0]
+                    }),
+                    e(Bar, {
+                      dataKey: 'parts',
+                      name: 'Parts & Spares',
+                      fill: 'var(--parts-color)',
+                      stackId: chartType === 'stacked' ? 'a' : undefined,
+                      radius: chartType === 'stacked' ? [0, 0, 0, 0] : [4, 4, 0, 0]
+                    }),
+                    e(Bar, {
+                      dataKey: 'other',
+                      name: 'Other & Tax',
+                      fill: 'var(--other-color)',
+                      stackId: chartType === 'stacked' ? 'a' : undefined,
+                      radius: chartType === 'stacked' ? [4, 4, 0, 0] : [4, 4, 0, 0]
+                    })
+                  )
+                )
+              )
+            )
+          ),
+
+          // Monthly Detailed Breakdown List
+          e('div', { className: 'month-list-title' },
+            e('span', null, 'Monthly Breakdown & Log Counts'),
+            e('span', { style: { fontSize: '11px', color: 'var(--fuel-color)' } },
+              `${stats.totalLiters.toFixed(1)} L Total Fuel`
+            )
+          ),
+
+          // Render Month Cards (reversed so newest month appears first)
+          [...filteredData].reverse().map(item => {
+            const isSelected = selectedMonth === item.monthKey;
+            const total = item.total || 0;
+            const fuelPct = total > 0 ? ((item.fuel || 0) / total) * 100 : 0;
+            const servicePct = total > 0 ? ((item.service || 0) / total) * 100 : 0;
+            const partsPct = total > 0 ? ((item.parts || 0) / total) * 100 : 0;
+            const otherPct = total > 0 ? ((item.other || 0) / total) * 100 : 0;
+
+            return e('div', {
+              key: item.monthKey,
+              className: `month-card ${isSelected ? 'selected' : ''}`,
+              onClick: () => setSelectedMonth(isSelected ? null : item.monthKey)
+            },
+              e('div', { className: 'month-card-header' },
+                e('div', null,
+                  e('div', { className: 'month-name' }, item.fullName || item.month),
+                  e('div', { style: { fontSize: '11px', color: 'var(--text-muted)' } },
+                    `${item.fuelEntries || 0} fuel fill-ups • ${((item.fuelLiters || 0)).toFixed(1)} L`
+                  )
+                ),
+                e('div', { className: 'month-total' },
+                  formatMoney(total, currency)
+                )
+              ),
+
+              // Visual split bar
+              total > 0 && e('div', { className: 'progress-bar-container' },
+                fuelPct > 0 && e('div', {
+                  className: 'progress-segment',
+                  style: { width: `${fuelPct}%`, background: 'var(--fuel-color)' }
+                }),
+                servicePct > 0 && e('div', {
+                  className: 'progress-segment',
+                  style: { width: `${servicePct}%`, background: 'var(--service-color)' }
+                }),
+                partsPct > 0 && e('div', {
+                  className: 'progress-segment',
+                  style: { width: `${partsPct}%`, background: 'var(--parts-color)' }
+                }),
+                otherPct > 0 && e('div', {
+                  className: 'progress-segment',
+                  style: { width: `${otherPct}%`, background: 'var(--other-color)' }
+                })
+              ),
+
+              // Value chips
+              e('div', { className: 'month-chips' },
+                (item.fuel || 0) > 0 && e('span', { className: 'chip-item' },
+                  e('span', { className: 'tooltip-dot', style: { background: 'var(--fuel-color)' } }),
+                  `Fuel: ${formatMoney(item.fuel, currency)}`
+                ),
+                (item.service || 0) > 0 && e('span', { className: 'chip-item' },
+                  e('span', { className: 'tooltip-dot', style: { background: 'var(--service-color)' } }),
+                  `Service: ${formatMoney(item.service, currency)}`
+                ),
+                (item.parts || 0) > 0 && e('span', { className: 'chip-item' },
+                  e('span', { className: 'tooltip-dot', style: { background: 'var(--parts-color)' } }),
+                  `Parts: ${formatMoney(item.parts, currency)}`
+                ),
+                (item.other || 0) > 0 && e('span', { className: 'chip-item' },
+                  e('span', { className: 'tooltip-dot', style: { background: 'var(--other-color)' } }),
+                  `Other: ${formatMoney(item.other, currency)}`
+                )
+              )
+            );
+          }),
+
+          // Action Buttons
+          e('div', { className: 'actions-footer' },
+            e('button', {
+              className: 'action-btn btn-fuel',
+              onClick: () => {
+                if (window.AndroidBridge && window.AndroidBridge.openAddFuel) {
+                  window.AndroidBridge.openAddFuel();
+                }
+              }
+            }, '+ Add Fuel'),
+            e('button', {
+              className: 'action-btn btn-service',
+              onClick: () => {
+                if (window.AndroidBridge && window.AndroidBridge.openAddService) {
+                  window.AndroidBridge.openAddService();
+                }
+              }
+            }, '+ Add Service'),
+            e('button', {
+              className: 'action-btn btn-seed',
+              onClick: () => {
+                if (window.AndroidBridge && window.AndroidBridge.seedDemoMonths) {
+                  window.AndroidBridge.seedDemoMonths();
+                }
+              }
+            }, '⚡ Demo History')
+          )
+        );
+      }
+
+      ReactDOM.render(e(App), document.getElementById('root'));
+    })();
+  </script>
+</body>
+</html>
