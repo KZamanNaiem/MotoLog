@@ -93,6 +93,7 @@ class DataExporter(private val dao: MotoDao) {
                 put("year", v.year)
                 put("color", v.color)
                 put("purchaseDateTimestamp", v.purchaseDateTimestamp ?: JSONObject.NULL)
+                put("purchaseDatePrecision", v.purchaseDatePrecision)
                 put("ownerName", v.ownerName)
                 put("country", v.country)
                 put("vin", v.vin)

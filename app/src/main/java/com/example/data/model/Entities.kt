@@ -2,6 +2,57 @@ package com.example.data.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+
+enum class PurchaseDatePrecision(val tabLabel: String, val badgeLabel: String) {
+    FULL_DATE("Full Date", "EXACT DATE"),
+    MONTH_YEAR("Month & Year", "MONTH & YEAR"),
+    YEAR_ONLY("Year Only", "YEAR ONLY");
+
+    companion object {
+        fun fromString(raw: String?): PurchaseDatePrecision {
+            return entries.firstOrNull { it.name == raw } ?: FULL_DATE
+        }
+    }
+}
+
+object PurchaseDateUtils {
+    fun normalizeFullDateMillis(year: Int, monthZeroBased: Int, dayOfMonth: Int): Long {
+        val cal = Calendar.getInstance().apply {
+            clear()
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, monthZeroBased.coerceIn(0, 11))
+            val maxDay = getActualMaximum(Calendar.DAY_OF_MONTH)
+            set(Calendar.DAY_OF_MONTH, dayOfMonth.coerceIn(1, maxDay))
+            set(Calendar.HOUR_OF_DAY, 12)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        return cal.timeInMillis
+    }
+
+    fun normalizeMonthYearMillis(year: Int, monthZeroBased: Int): Long {
+        return normalizeFullDateMillis(year, monthZeroBased, 1)
+    }
+
+    fun normalizeYearOnlyMillis(year: Int): Long {
+        return normalizeFullDateMillis(year, Calendar.JANUARY, 1)
+    }
+
+    fun formatPurchaseDate(timestamp: Long?, precision: PurchaseDatePrecision): String {
+        if (timestamp == null || timestamp <= 0L) return "Not set"
+        val pattern = when (precision) {
+            PurchaseDatePrecision.FULL_DATE -> "MMM dd, yyyy"
+            PurchaseDatePrecision.MONTH_YEAR -> "MMM yyyy"
+            PurchaseDatePrecision.YEAR_ONLY -> "yyyy"
+        }
+        return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(timestamp))
+    }
+}
 
 @Entity(tableName = "vehicles")
 data class Vehicle(
@@ -14,6 +65,7 @@ data class Vehicle(
     val year: Int = 2023,
     val color: String = "Matte Black",
     val purchaseDateTimestamp: Long? = null,
+    val purchaseDatePrecision: String = PurchaseDatePrecision.FULL_DATE.name,
     val ownerName: String = "Rider",
     val country: String = "United States",
     val vin: String = "JYARN78E1PA001234",

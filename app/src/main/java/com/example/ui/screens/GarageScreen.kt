@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,8 +36,13 @@ import com.example.ui.theme.FuelGreen
 import com.example.ui.theme.MotoOrange
 import com.example.ui.theme.ServiceBlue
 import com.example.ui.theme.WarningYellow
+import com.example.data.model.PurchaseDatePrecision
+import com.example.data.model.PurchaseDateUtils
+import com.example.ui.components.ModelYearDropdownField
+import com.example.ui.components.PurchaseDatePickerField
 import com.example.ui.viewmodel.MotoViewModel
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -53,7 +59,8 @@ fun GarageScreen(
     onOpenEditProfile: () -> Unit,
     onOpenExportData: () -> Unit = {},
     onLaunchOnboardingWizard: () -> Unit = {},
-    onOpenFeedback: () -> Unit = {}
+    onOpenFeedback: () -> Unit = {},
+    onOpenBacklog: (com.example.ui.components.BacklogCategory) -> Unit = {}
 ) {
     val activeVehicle by viewModel.activeVehicle.collectAsState()
     val allVehicles by viewModel.allVehicles.collectAsState()
@@ -327,6 +334,26 @@ fun GarageScreen(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
+                        if (activeVehicle.purchaseDateTimestamp != null && activeVehicle.purchaseDateTimestamp!! > 0L) {
+                            val purchasePrecision = PurchaseDatePrecision.fromString(activeVehicle.purchaseDatePrecision)
+                            val purchaseLabel = PurchaseDateUtils.formatPurchaseDate(
+                                activeVehicle.purchaseDateTimestamp,
+                                purchasePrecision
+                            )
+                            Surface(
+                                color = Color.Black.copy(alpha = 0.45f),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.testTag("hero_purchase_date_badge")
+                            ) {
+                                Text(
+                                    text = "Bought $purchaseLabel",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White.copy(alpha = 0.92f),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -466,6 +493,7 @@ fun GarageScreen(
                 onAddPartClick = onOpenAddPart,
                 onScanOdoClick = { showOdometerScannerModal = true },
                 onExportClick = onOpenExportData,
+                onBacklogClick = { onOpenBacklog(com.example.ui.components.BacklogCategory.FUEL) },
                 modifier = Modifier.padding(16.dp)
             )
         }
@@ -641,9 +669,75 @@ fun GarageScreen(
             }
         }
 
-        // --- LOCAL DATA BACKUP & EXPORT CARD ---
+        // --- BACKLOG & PAST HISTORY CARD ---
         item {
             Spacer(modifier = Modifier.height(16.dp))
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .testTag("garage_backlog_card"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MotoOrange.copy(alpha = 0.15f),
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.History,
+                                    contentDescription = null,
+                                    tint = MotoOrange,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = "Backlog & Past History",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Add saved previous fuel, service & replaced parts history",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = { onOpenBacklog(com.example.ui.components.BacklogCategory.FUEL) },
+                        colors = ButtonDefaults.buttonColors(containerColor = MotoOrange),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .testTag("garage_backlog_button")
+                    ) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Backlog", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // --- LOCAL DATA BACKUP & EXPORT CARD ---
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -820,7 +914,7 @@ fun GarageScreen(
     if (showAddVehicleDialog) {
         AddVehicleDialog(
             onDismiss = { showAddVehicleDialog = false },
-            onConfirm = { name, type, make, model, year, plate, odo, taxNo, taxDays, regNo, regDays, dlNo, dlDays ->
+            onConfirm = { name, type, make, model, year, purchaseDateTs, purchaseDatePrec, plate, odo, taxNo, taxDays, regNo, regDays, dlNo, dlDays ->
                 viewModel.addVehicle(
                     name = name,
                     vehicleType = type,
@@ -831,6 +925,8 @@ fun GarageScreen(
                     licensePlate = plate,
                     currentOdometer = odo,
                     fuelCapacity = 15.0,
+                    purchaseDateTimestamp = purchaseDateTs,
+                    purchaseDatePrecision = purchaseDatePrec,
                     taxTokenNumber = taxNo,
                     taxTokenExpiryDays = taxDays,
                     registrationNumber = regNo,
@@ -848,13 +944,31 @@ fun GarageScreen(
 @Composable
 fun AddVehicleDialog(
     onDismiss: () -> Unit,
-    onConfirm: (name: String, type: String, make: String, model: String, year: Int, plate: String, odo: Double, taxNo: String, taxDays: Int?, regNo: String, regDays: Int?, dlNo: String, dlDays: Int?) -> Unit
+    onConfirm: (
+        name: String,
+        type: String,
+        make: String,
+        model: String,
+        year: Int,
+        purchaseDateTimestamp: Long?,
+        purchaseDatePrecision: String,
+        plate: String,
+        odo: Double,
+        taxNo: String,
+        taxDays: Int?,
+        regNo: String,
+        regDays: Int?,
+        dlNo: String,
+        dlDays: Int?
+    ) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var vehicleType by remember { mutableStateOf("Motorcycle") }
     var make by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("") }
-    var yearStr by remember { mutableStateOf("2023") }
+    var selectedYear by remember { mutableIntStateOf(Calendar.getInstance().get(Calendar.YEAR)) }
+    var purchaseDateTimestamp by remember { mutableStateOf<Long?>(null) }
+    var purchaseDatePrecision by remember { mutableStateOf(PurchaseDatePrecision.FULL_DATE) }
     var plate by remember { mutableStateOf("") }
     var odoStr by remember { mutableStateOf("0") }
 
@@ -924,19 +1038,36 @@ fun AddVehicleDialog(
 
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = yearStr,
-                            onValueChange = { yearStr = it },
-                            label = { Text("Year") },
-                            modifier = Modifier.weight(1f)
+                        ModelYearDropdownField(
+                            selectedYear = selectedYear,
+                            onYearSelected = { selectedYear = it },
+                            label = "Model Year",
+                            modifier = Modifier.weight(1f),
+                            testTag = "add_vehicle_year_dropdown"
                         )
                         OutlinedTextField(
                             value = plate,
                             onValueChange = { plate = it },
                             label = { Text("License Plate") },
-                            modifier = Modifier.weight(1.5f)
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.weight(1.3f)
                         )
                     }
+                }
+
+                item {
+                    PurchaseDatePickerField(
+                        selectedTimestamp = purchaseDateTimestamp,
+                        precision = purchaseDatePrecision,
+                        onDateSelected = { ts, prec ->
+                            purchaseDateTimestamp = ts
+                            purchaseDatePrecision = prec
+                        },
+                        label = "Purchased On (Optional)",
+                        allowClear = true,
+                        testTagPrefix = "add_vehicle_purchase_date"
+                    )
                 }
 
                 item {
@@ -1020,7 +1151,9 @@ fun AddVehicleDialog(
                             vehicleType,
                             make.ifBlank { "Vehicle" },
                             model.ifBlank { "Model" },
-                            yearStr.toIntOrNull() ?: 2023,
+                            selectedYear,
+                            purchaseDateTimestamp,
+                            purchaseDatePrecision.name,
                             plate.ifBlank { "N/A" },
                             odoStr.toDoubleOrNull() ?: 0.0,
                             taxNo,

@@ -408,6 +408,7 @@ class MotoViewModel(application: Application) : AndroidViewModel(application) {
         year: Int?,
         color: String,
         boughtOnTimestamp: Long?,
+        purchaseDatePrecision: String = com.example.data.model.PurchaseDatePrecision.FULL_DATE.name,
         numberPlate: String
     ) {
         viewModelScope.launch {
@@ -423,7 +424,8 @@ class MotoViewModel(application: Application) : AndroidViewModel(application) {
                 model = model.ifBlank { vehicleType },
                 year = calculatedYear,
                 color = color.ifBlank { "Matte Black" },
-                purchaseDateTimestamp = boughtOnTimestamp ?: now,
+                purchaseDateTimestamp = boughtOnTimestamp,
+                purchaseDatePrecision = purchaseDatePrecision,
                 ownerName = ownerName.ifBlank { "Driver" },
                 country = country,
                 vin = "VIN-${System.currentTimeMillis() % 1000000}",
@@ -466,6 +468,8 @@ class MotoViewModel(application: Application) : AndroidViewModel(application) {
         licensePlate: String,
         currentOdometer: Double,
         fuelCapacity: Double,
+        purchaseDateTimestamp: Long? = null,
+        purchaseDatePrecision: String = com.example.data.model.PurchaseDatePrecision.FULL_DATE.name,
         taxTokenNumber: String = "",
         taxTokenExpiryDays: Int? = 365,
         registrationNumber: String = "",
@@ -482,6 +486,8 @@ class MotoViewModel(application: Application) : AndroidViewModel(application) {
                 make = make,
                 model = model,
                 year = year,
+                purchaseDateTimestamp = purchaseDateTimestamp,
+                purchaseDatePrecision = purchaseDatePrecision,
                 vin = vin,
                 licensePlate = licensePlate,
                 currentOdometer = currentOdometer,
@@ -542,7 +548,9 @@ class MotoViewModel(application: Application) : AndroidViewModel(application) {
         vin: String,
         licensePlate: String,
         currentOdometer: Double,
-        fuelCapacity: Double
+        fuelCapacity: Double,
+        purchaseDateTimestamp: Long? = activeVehicle.value.purchaseDateTimestamp,
+        purchaseDatePrecision: String = activeVehicle.value.purchaseDatePrecision
     ) {
         viewModelScope.launch {
             val current = activeVehicle.value
@@ -555,7 +563,9 @@ class MotoViewModel(application: Application) : AndroidViewModel(application) {
                     vin = vin,
                     licensePlate = licensePlate,
                     currentOdometer = currentOdometer,
-                    fuelCapacityLiters = fuelCapacity
+                    fuelCapacityLiters = fuelCapacity,
+                    purchaseDateTimestamp = purchaseDateTimestamp,
+                    purchaseDatePrecision = purchaseDatePrecision
                 )
             )
         }
@@ -638,7 +648,8 @@ class MotoViewModel(application: Application) : AndroidViewModel(application) {
         cost: Double,
         recommendedIntervalKm: Double,
         category: String,
-        notes: String
+        notes: String,
+        isReplaced: Boolean = false
     ) {
         viewModelScope.launch {
             val item = PartItem(
@@ -650,10 +661,34 @@ class MotoViewModel(application: Application) : AndroidViewModel(application) {
                 installedOdometer = installedOdometer,
                 cost = cost,
                 recommendedIntervalKm = recommendedIntervalKm,
+                isReplaced = isReplaced,
                 category = category,
                 notes = notes
             )
             repository.addPartItem(item)
+        }
+    }
+
+    fun saveBacklogBatch(
+        fuelLogsToAdd: List<FuelLog>,
+        serviceLogsToAdd: List<ServiceLog>,
+        partItemsToAdd: List<PartItem>,
+        updateOdometerIfHigher: Boolean = true
+    ) {
+        viewModelScope.launch {
+            val currentVehId = activeVehicle.value.id
+            fuelLogsToAdd.forEach { log ->
+                val targetLog = if (log.vehicleId <= 0L) log.copy(vehicleId = currentVehId) else log
+                repository.addFuelLog(targetLog, updateOdometerIfHigher = updateOdometerIfHigher)
+            }
+            serviceLogsToAdd.forEach { log ->
+                val targetLog = if (log.vehicleId <= 0L) log.copy(vehicleId = currentVehId) else log
+                repository.addServiceLog(targetLog, updateOdometerIfHigher = updateOdometerIfHigher)
+            }
+            partItemsToAdd.forEach { part ->
+                val targetPart = if (part.vehicleId <= 0L) part.copy(vehicleId = currentVehId) else part
+                repository.addPartItem(targetPart)
+            }
         }
     }
 

@@ -26,7 +26,8 @@ import java.util.Locale
 fun FuelTrackerScreen(
     viewModel: MotoViewModel,
     onOpenAddFuel: () -> Unit,
-    onNavigateToExpenses: (() -> Unit)? = null
+    onNavigateToExpenses: (() -> Unit)? = null,
+    onOpenBacklog: (() -> Unit)? = null
 ) {
     val fuelLogs by viewModel.fuelLogs.collectAsState()
     val fuelStats by viewModel.fuelStats.collectAsState()
@@ -214,22 +215,45 @@ fun FuelTrackerScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "FUEL LOG HISTORY",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 1.sp
-                )
-                Text(
-                    text = "${fuelLogs.size} Fills",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column {
+                    Text(
+                        text = "FUEL LOG HISTORY",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "${fuelLogs.size} Fills recorded",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (onOpenBacklog != null) {
+                    TextButton(
+                        onClick = onOpenBacklog,
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .testTag("fuel_open_backlog_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = "Add Past Fuel Backlog",
+                            tint = MotoOrange,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Add Backlog",
+                            fontWeight = FontWeight.Bold,
+                            color = MotoOrange
+                        )
+                    }
+                }
             }
 
             // List

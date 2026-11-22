@@ -78,11 +78,13 @@ fun MotoLogMainApp(viewModel: MotoViewModel) {
     var showExportDataDialog by remember { mutableStateOf(false) }
     var showNotificationSettingsDialog by remember { mutableStateOf(false) }
     var showFeedbackDialog by remember { mutableStateOf(false) }
+    var showBacklogDialog by remember { mutableStateOf(false) }
+    var backlogInitialCategory by remember { mutableStateOf(BacklogCategory.FUEL) }
     val maintenanceAlerts by viewModel.maintenanceAlerts.collectAsState()
 
     if (!hasCompletedOnboarding || showOnboardingModal) {
         OnboardingScreen(
-            onComplete = { name, country, currencySymbol, distanceUnit, volumeUnit, vehicleType, model, year, color, boughtOnTimestamp, numberPlate ->
+            onComplete = { name, country, currencySymbol, distanceUnit, volumeUnit, vehicleType, model, year, color, boughtOnTimestamp, purchaseDatePrecision, numberPlate ->
                 viewModel.completeOnboarding(
                     ownerName = name,
                     country = country,
@@ -94,6 +96,7 @@ fun MotoLogMainApp(viewModel: MotoViewModel) {
                     year = year,
                     color = color,
                     boughtOnTimestamp = boughtOnTimestamp,
+                    purchaseDatePrecision = purchaseDatePrecision,
                     numberPlate = numberPlate
                 )
                 prefs.edit().putBoolean("has_completed_onboarding", true).apply()
@@ -232,23 +235,39 @@ fun MotoLogMainApp(viewModel: MotoViewModel) {
                         onOpenEditProfile = { showEditProfileDialog = true },
                         onOpenExportData = { showExportDataDialog = true },
                         onLaunchOnboardingWizard = { showOnboardingModal = true },
-                        onOpenFeedback = { showFeedbackDialog = true }
+                        onOpenFeedback = { showFeedbackDialog = true },
+                        onOpenBacklog = { category ->
+                            backlogInitialCategory = category
+                            showBacklogDialog = true
+                        }
                     )
 
                     NavigationTab.SERVICE -> MaintenanceLogScreen(
                         viewModel = viewModel,
-                        onOpenAddService = { showAddServiceDialog = true }
+                        onOpenAddService = { showAddServiceDialog = true },
+                        onOpenBacklog = {
+                            backlogInitialCategory = BacklogCategory.SERVICE
+                            showBacklogDialog = true
+                        }
                     )
 
                     NavigationTab.FUEL -> FuelTrackerScreen(
                         viewModel = viewModel,
                         onOpenAddFuel = { showAddFuelDialog = true },
-                        onNavigateToExpenses = { currentTab = NavigationTab.EXPENSES }
+                        onNavigateToExpenses = { currentTab = NavigationTab.EXPENSES },
+                        onOpenBacklog = {
+                            backlogInitialCategory = BacklogCategory.FUEL
+                            showBacklogDialog = true
+                        }
                     )
 
                     NavigationTab.PARTS -> PartsManagerScreen(
                         viewModel = viewModel,
-                        onOpenAddPart = { showAddPartDialog = true }
+                        onOpenAddPart = { showAddPartDialog = true },
+                        onOpenBacklog = {
+                            backlogInitialCategory = BacklogCategory.PART
+                            showBacklogDialog = true
+                        }
                     )
 
                     NavigationTab.EXPENSES -> AnalyticsExpensesScreen(
@@ -297,8 +316,19 @@ fun MotoLogMainApp(viewModel: MotoViewModel) {
         AddPartDialog(
             currentOdometer = profile.currentOdometer,
             onDismiss = { showAddPartDialog = false },
-            onConfirm = { name, partNum, brand, odo, cost, interval, category, notes ->
-                viewModel.addPartItem(name, partNum, brand, System.currentTimeMillis(), odo, cost, interval, category, notes)
+            onConfirm = { name, partNum, brand, installedDateTs, odo, cost, interval, category, notes, isReplaced ->
+                viewModel.addPartItem(
+                    name = name,
+                    partNumber = partNum,
+                    brand = brand,
+                    installedDateTimestamp = installedDateTs,
+                    installedOdometer = odo,
+                    cost = cost,
+                    recommendedIntervalKm = interval,
+                    category = category,
+                    notes = notes,
+                    isReplaced = isReplaced
+                )
                 showAddPartDialog = false
             }
         )
@@ -308,8 +338,19 @@ fun MotoLogMainApp(viewModel: MotoViewModel) {
         EditProfileDialog(
             profile = profile,
             onDismiss = { showEditProfileDialog = false },
-            onConfirm = { name, make, model, year, vin, plate, odo, fuelCap ->
-                viewModel.updateMotorcycleProfile(name, make, model, year, vin, plate, odo, fuelCap)
+            onConfirm = { name, make, model, year, vin, plate, odo, fuelCap, purchaseDateTs, purchaseDatePrecision ->
+                viewModel.updateMotorcycleProfile(
+                    name = name,
+                    make = make,
+                    model = model,
+                    year = year,
+                    vin = vin,
+                    licensePlate = plate,
+                    currentOdometer = odo,
+                    fuelCapacity = fuelCap,
+                    purchaseDateTimestamp = purchaseDateTs,
+                    purchaseDatePrecision = purchaseDatePrecision
+                )
                 showEditProfileDialog = false
             },
             onUpdateDocuments = { taxNo, taxDays, regNo, regDays, dlNo, dlDays ->
@@ -343,6 +384,15 @@ fun MotoLogMainApp(viewModel: MotoViewModel) {
         FeedbackDialog(
             activeVehicle = profile,
             onDismiss = { showFeedbackDialog = false }
+        )
+    }
+
+    if (showBacklogDialog) {
+        BacklogHistoryDialog(
+            viewModel = viewModel,
+            activeVehicle = profile,
+            initialCategory = backlogInitialCategory,
+            onDismiss = { showBacklogDialog = false }
         )
     }
 

@@ -25,7 +25,8 @@ import com.example.ui.viewmodel.PartWearStatus
 @Composable
 fun PartsManagerScreen(
     viewModel: MotoViewModel,
-    onOpenAddPart: () -> Unit
+    onOpenAddPart: () -> Unit,
+    onOpenBacklog: (() -> Unit)? = null
 ) {
     val partsWearList by viewModel.partsWearStatusList.collectAsState()
     val allParts by viewModel.partItems.collectAsState()
@@ -75,6 +76,47 @@ fun PartsManagerScreen(
                     text = { Text("Replaced History (${replacedParts.size})", fontWeight = FontWeight.Bold) },
                     modifier = Modifier.testTag("parts_tab_replaced")
                 )
+            }
+
+            if (onOpenBacklog != null) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Have past part installations or replacements?",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            onClick = onOpenBacklog,
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .testTag("parts_open_backlog_btn")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = "Add Past Parts Backlog",
+                                tint = MotoOrange,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Add Backlog",
+                                fontWeight = FontWeight.Bold,
+                                color = MotoOrange
+                            )
+                        }
+                    }
+                }
             }
 
             if (selectedTab == 0) {

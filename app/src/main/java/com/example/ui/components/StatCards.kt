@@ -97,6 +97,7 @@ fun QuickActionBanner(
     onAddPartClick: () -> Unit,
     onScanOdoClick: (() -> Unit)? = null,
     onExportClick: (() -> Unit)? = null,
+    onBacklogClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -132,12 +133,39 @@ fun QuickActionBanner(
                             color = Color.White
                         )
                         Text(
-                            text = "Record maintenance, fuel, or export backup",
+                            text = "Record fuel, service, backlog or backup",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.85f)
                         )
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (onBacklogClick != null) {
+                            Surface(
+                                onClick = onBacklogClick,
+                                color = Color.White.copy(alpha = 0.25f),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.testTag("quick_backlog_banner_button")
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.History,
+                                        contentDescription = "Add Backlog History",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "Backlog",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
                         if (onExportClick != null) {
                             Surface(
                                 onClick = onExportClick,

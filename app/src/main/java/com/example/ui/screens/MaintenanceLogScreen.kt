@@ -28,7 +28,8 @@ import java.util.Locale
 @Composable
 fun MaintenanceLogScreen(
     viewModel: MotoViewModel,
-    onOpenAddService: () -> Unit
+    onOpenAddService: () -> Unit,
+    onOpenBacklog: (() -> Unit)? = null
 ) {
     val serviceLogs by viewModel.serviceLogs.collectAsState()
     val profile by viewModel.profile.collectAsState()
@@ -111,8 +112,33 @@ fun MaintenanceLogScreen(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        if (onOpenBacklog != null) {
+                            OutlinedButton(
+                                onClick = onOpenBacklog,
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .heightIn(min = 48.dp)
+                                    .testTag("service_open_backlog_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.History,
+                                    contentDescription = "Add Past Service Backlog",
+                                    tint = MotoOrange,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Backlog",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MotoOrange
+                                )
+                            }
+                        }
+
                         IconButton(
                             onClick = { showNotificationSettingsDialog = true },
                             modifier = Modifier.testTag("btn_open_maintenance_notifications")

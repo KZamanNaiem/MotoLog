@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,8 +19,223 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.MotorcycleProfile
 import com.example.data.model.PartItem
+import com.example.data.model.PurchaseDatePrecision
 import com.example.ui.theme.MotoOrange
 import com.example.ui.theme.ServiceBlue
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+
+internal fun isDateInPastDays(timestampMillis: Long): Boolean {
+    val todayCal = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return timestampMillis < todayCal.timeInMillis
+}
+
+internal fun shiftDaysFromToday(daysAgo: Int): Long {
+    val cal = Calendar.getInstance()
+    cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
+    return cal.timeInMillis
+}
+
+internal fun shiftMonthsFromToday(monthsAgo: Int): Long {
+    val cal = Calendar.getInstance()
+    cal.add(Calendar.MONTH, -monthsAgo)
+    return cal.timeInMillis
+}
+
+internal fun utcPickerMillisToLocalMillis(utcMillis: Long): Long {
+    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        timeInMillis = utcMillis
+    }
+    val localCal = Calendar.getInstance().apply {
+        set(Calendar.YEAR, utcCal.get(Calendar.YEAR))
+        set(Calendar.MONTH, utcCal.get(Calendar.MONTH))
+        set(Calendar.DAY_OF_MONTH, utcCal.get(Calendar.DAY_OF_MONTH))
+        set(Calendar.HOUR_OF_DAY, 12)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return localCal.timeInMillis
+}
+
+internal fun localMillisToUtcPickerMillis(localMillis: Long): Long {
+    val localCal = Calendar.getInstance().apply {
+        timeInMillis = localMillis
+    }
+    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+        clear()
+        set(Calendar.YEAR, localCal.get(Calendar.YEAR))
+        set(Calendar.MONTH, localCal.get(Calendar.MONTH))
+        set(Calendar.DAY_OF_MONTH, localCal.get(Calendar.DAY_OF_MONTH))
+    }
+    return utcCal.timeInMillis
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun BackdatePickerField(
+    selectedTimestamp: Long,
+    onDateSelected: (Long) -> Unit,
+    label: String = "Entry Date (Tap to Backdate)",
+    modifier: Modifier = Modifier,
+    testTagPrefix: String = "entry_date"
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+    val isBackdated = remember(selectedTimestamp) { isDateInPastDays(selectedTimestamp) }
+    val formattedDate = remember(selectedTimestamp) { dateFormat.format(Date(selectedTimestamp)) }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = if (isBackdated) MotoOrange.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+            border = androidx.compose.foundation.BorderStroke(
+                width = 1.dp,
+                color = if (isBackdated) MotoOrange.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showDatePicker = true }
+                .testTag("${testTagPrefix}_picker_button")
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = if (isBackdated) Icons.Default.History else Icons.Default.CalendarToday,
+                        contentDescription = null,
+                        tint = if (isBackdated) MotoOrange else MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Column {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = formattedDate,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (isBackdated) MotoOrange.copy(alpha = 0.2f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    text = if (isBackdated) "BACKDATED" else "TODAY",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (isBackdated) MotoOrange else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                TextButton(
+                    onClick = { showDatePicker = true },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("Pick Date", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Quick Backdate Preset Chips
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val presets = listOf(
+                "Today" to { System.currentTimeMillis() },
+                "-1d" to { shiftDaysFromToday(1) },
+                "-1w" to { shiftDaysFromToday(7) },
+                "-1m" to { shiftMonthsFromToday(1) },
+                "-3m" to { shiftMonthsFromToday(3) }
+            )
+            presets.forEach { (chipLabel, timeProvider) ->
+                AssistChip(
+                    onClick = { onDateSelected(timeProvider()) },
+                    label = { Text(chipLabel, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    modifier = Modifier
+                        .height(28.dp)
+                        .testTag("${testTagPrefix}_preset_$chipLabel")
+                )
+            }
+        }
+
+        if (isBackdated) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Historical entry: lower odometer values won't overwrite your vehicle's current reading.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
+        }
+    }
+
+    if (showDatePicker) {
+        val todayEndUtc = remember { localMillisToUtcPickerMillis(System.currentTimeMillis()) }
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = localMillisToUtcPickerMillis(selectedTimestamp),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    return utcTimeMillis <= todayEndUtc + 86400000L
+                }
+            }
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { utcMillis ->
+                            onDateSelected(utcPickerMillisToLocalMillis(utcMillis))
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("Apply Date", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +254,7 @@ fun AddServiceDialog(
         notes: String
     ) -> Unit
 ) {
+    var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     var serviceType by remember { mutableStateOf("Scheduled Service") }
     var odometerStr by remember { mutableStateOf(currentOdometer.toInt().toString()) }
     var costStr by remember { mutableStateOf("") }
@@ -45,9 +262,8 @@ fun AddServiceDialog(
     var partsServiced by remember { mutableStateOf("") }
     var partsChanged by remember { mutableStateOf("") }
     var nextOdometerStr by remember { mutableStateOf((currentOdometer.toInt() + 5000).toString()) }
+    var nextOdoEditedManually by remember { mutableStateOf(false) }
     var notes by remember { mutableStateOf("") }
-
-    val serviceTypeOptions = listOf("Scheduled Service", "Oil & Filter Change", "Brake & Tire Service", "Chain & Sprockets", "Major Overhaul", "Repair", "Inspection", "Custom Upgrade")
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -73,6 +289,18 @@ fun AddServiceDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                BackdatePickerField(
+                    selectedTimestamp = selectedDateMillis,
+                    onDateSelected = { newDate ->
+                        selectedDateMillis = newDate
+                        if (isDateInPastDays(newDate) && !nextOdoEditedManually) {
+                            nextOdometerStr = ""
+                        }
+                    },
+                    label = "Service Date (Today or Backdate)",
+                    testTagPrefix = "service_date"
+                )
+
                 // Service Type Dropdown / Selection
                 Text(
                     text = "Service Type",
@@ -146,8 +374,11 @@ fun AddServiceDialog(
 
                 OutlinedTextField(
                     value = nextOdometerStr,
-                    onValueChange = { nextOdometerStr = it },
-                    label = { Text("Next Recommended Service (km)") },
+                    onValueChange = {
+                        nextOdometerStr = it
+                        nextOdoEditedManually = true
+                    },
+                    label = { Text("Next Recommended Service (km, optional)") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -173,7 +404,7 @@ fun AddServiceDialog(
                     val cost = costStr.toDoubleOrNull() ?: 0.0
                     val nextOdo = nextOdometerStr.toDoubleOrNull()
                     onConfirm(
-                        System.currentTimeMillis(),
+                        selectedDateMillis,
                         odo,
                         serviceType.ifBlank { "General Service" },
                         cost,
@@ -214,6 +445,7 @@ fun AddFuelDialog(
         notes: String
     ) -> Unit
 ) {
+    var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     var odometerStr by remember { mutableStateOf(currentOdometer.toInt().toString()) }
     var litersStr by remember { mutableStateOf("") }
     var priceStr by remember { mutableStateOf("") }
@@ -246,6 +478,13 @@ fun AddFuelDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                BackdatePickerField(
+                    selectedTimestamp = selectedDateMillis,
+                    onDateSelected = { selectedDateMillis = it },
+                    label = "Fill-Up Date (Today or Backdate)",
+                    testTagPrefix = "fuel_date"
+                )
+
                 OdometerInputFieldWithScanner(
                     value = odometerStr,
                     onValueChange = { odometerStr = it },
@@ -324,7 +563,7 @@ fun AddFuelDialog(
                     val lit = litersStr.toDoubleOrNull() ?: 0.0
                     val price = priceStr.toDoubleOrNull() ?: 0.0
                     onConfirm(
-                        System.currentTimeMillis(),
+                        selectedDateMillis,
                         odo,
                         lit,
                         price,
@@ -357,13 +596,16 @@ fun AddPartDialog(
         name: String,
         partNumber: String,
         brand: String,
+        installedDateTimestamp: Long,
         installedOdometer: Double,
         cost: Double,
         recommendedIntervalKm: Double,
         category: String,
-        notes: String
+        notes: String,
+        isReplaced: Boolean
     ) -> Unit
 ) {
+    var selectedDateMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     var name by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
     var partNumber by remember { mutableStateOf("") }
@@ -372,6 +614,7 @@ fun AddPartDialog(
     var costStr by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Consumable") }
     var notes by remember { mutableStateOf("") }
+    var isHistoricalReplaced by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -389,6 +632,13 @@ fun AddPartDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                BackdatePickerField(
+                    selectedTimestamp = selectedDateMillis,
+                    onDateSelected = { selectedDateMillis = it },
+                    label = "Installed Date (Today or Backdate)",
+                    testTagPrefix = "part_date"
+                )
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -452,6 +702,31 @@ fun AddPartDialog(
                     singleLine = true
                 )
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Already Replaced (Past History)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Archive straight to Replaced History without wear alerts",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Switch(
+                        checked = isHistoricalReplaced,
+                        onCheckedChange = { isHistoricalReplaced = it },
+                        modifier = Modifier.testTag("part_already_replaced_switch")
+                    )
+                }
+
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
@@ -470,7 +745,18 @@ fun AddPartDialog(
                     val interval = intervalStr.toDoubleOrNull() ?: 5000.0
                     val cost = costStr.toDoubleOrNull() ?: 0.0
                     if (name.isNotBlank()) {
-                        onConfirm(name, partNumber, brand, odo, cost, interval, category, notes)
+                        onConfirm(
+                            name,
+                            partNumber,
+                            brand,
+                            selectedDateMillis,
+                            odo,
+                            cost,
+                            interval,
+                            category,
+                            notes,
+                            isHistoricalReplaced
+                        )
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = MotoOrange),
@@ -500,7 +786,9 @@ fun EditProfileDialog(
         vin: String,
         licensePlate: String,
         currentOdometer: Double,
-        fuelCapacity: Double
+        fuelCapacity: Double,
+        purchaseDateTimestamp: Long?,
+        purchaseDatePrecision: String
     ) -> Unit,
     onUpdateDocuments: ((
         taxTokenNumber: String,
@@ -515,7 +803,11 @@ fun EditProfileDialog(
     var name by remember { mutableStateOf(profile.name) }
     var make by remember { mutableStateOf(profile.make) }
     var model by remember { mutableStateOf(profile.model) }
-    var yearStr by remember { mutableStateOf(profile.year.toString()) }
+    var selectedYear by remember { mutableIntStateOf(profile.year.coerceAtLeast(1950)) }
+    var purchaseDateTimestamp by remember { mutableStateOf(profile.purchaseDateTimestamp) }
+    var purchaseDatePrecision by remember {
+        mutableStateOf(PurchaseDatePrecision.fromString(profile.purchaseDatePrecision))
+    }
     var vin by remember { mutableStateOf(profile.vin) }
     var licensePlate by remember { mutableStateOf(profile.licensePlate) }
     var odoStr by remember { mutableStateOf(profile.currentOdometer.toInt().toString()) }
@@ -588,6 +880,26 @@ fun EditProfileDialog(
                         singleLine = true
                     )
                 }
+
+                ModelYearDropdownField(
+                    selectedYear = selectedYear,
+                    onYearSelected = { selectedYear = it },
+                    label = "Model Year",
+                    modifier = Modifier.fillMaxWidth(),
+                    testTag = "profile_year_dropdown"
+                )
+
+                PurchaseDatePickerField(
+                    selectedTimestamp = purchaseDateTimestamp,
+                    precision = purchaseDatePrecision,
+                    onDateSelected = { ts, prec ->
+                        purchaseDateTimestamp = ts
+                        purchaseDatePrecision = prec
+                    },
+                    label = "Purchased On (Optional)",
+                    allowClear = true,
+                    testTagPrefix = "profile_purchase_date"
+                )
 
                 OdometerInputFieldWithScanner(
                     value = odoStr,
@@ -714,10 +1026,20 @@ fun EditProfileDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val year = yearStr.toIntOrNull() ?: profile.year
                     val odo = odoStr.toDoubleOrNull() ?: profile.currentOdometer
                     val cap = fuelCapStr.toDoubleOrNull() ?: profile.fuelCapacityLiters
-                    onConfirm(name, make, model, year, vin, licensePlate, odo, cap)
+                    onConfirm(
+                        name,
+                        make,
+                        model,
+                        selectedYear,
+                        vin,
+                        licensePlate,
+                        odo,
+                        cap,
+                        purchaseDateTimestamp,
+                        purchaseDatePrecision.name
+                    )
 
                     onUpdateDocuments?.invoke(
                         taxNo,

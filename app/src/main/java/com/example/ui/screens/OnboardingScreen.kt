@@ -28,8 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.data.model.PurchaseDatePrecision
+import com.example.ui.components.ModelYearDropdownField
+import com.example.ui.components.PurchaseDatePickerField
 import com.example.ui.theme.MotoOrange
-import java.text.SimpleDateFormat
 import java.util.*
 
 data class CountryConfig(
@@ -111,6 +113,7 @@ fun OnboardingScreen(
         year: Int?,
         color: String,
         boughtOnTimestamp: Long?,
+        purchaseDatePrecision: String,
         numberPlate: String
     ) -> Unit,
     modifier: Modifier = Modifier
@@ -127,10 +130,11 @@ fun OnboardingScreen(
 
     // Step 2 states
     var vehicleModel by remember { mutableStateOf("") }
-    var modelYearStr by remember { mutableStateOf("2023") }
+    var selectedModelYear by remember { mutableIntStateOf(Calendar.getInstance().get(Calendar.YEAR)) }
     var selectedColor by remember { mutableStateOf(ColorPresets[0].first) }
     var customColorText by remember { mutableStateOf("") }
-    var boughtOnOption by remember { mutableStateOf("Brand New / Today") }
+    var purchaseDateTimestamp by remember { mutableStateOf<Long?>(null) }
+    var purchaseDatePrecision by remember { mutableStateOf(PurchaseDatePrecision.FULL_DATE) }
     var numberPlate by remember { mutableStateOf("") }
 
     val effectiveColor = if (customColorText.isNotBlank()) customColorText else selectedColor
@@ -592,40 +596,22 @@ fun OnboardingScreen(
                         }
                     }
 
-                    // 2. Model Year (Optional)
+                    // 2. Model Year Dropdown
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "MODEL YEAR (OPTIONAL)",
+                                text = "MODEL YEAR (1950 – NEXT YEAR)",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            Row(
+                            ModelYearDropdownField(
+                                selectedYear = selectedModelYear,
+                                onYearSelected = { selectedModelYear = it },
+                                label = "Model Year",
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedTextField(
-                                    value = modelYearStr,
-                                    onValueChange = { modelYearStr = it },
-                                    label = { Text("Year (e.g. 2024)") },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(14.dp),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .testTag("onboarding_year_input")
-                                )
-
-                                // Quick Year Chips
-                                listOf("2024", "2023", "2022", "2020").forEach { yr ->
-                                    FilterChip(
-                                        selected = modelYearStr == yr,
-                                        onClick = { modelYearStr = yr },
-                                        label = { Text(yr) }
-                                    )
-                                }
-                            }
+                                testTag = "onboarding_year_dropdown"
+                            )
                         }
                     }
 
@@ -701,28 +687,26 @@ fun OnboardingScreen(
                         }
                     }
 
-                    // 4. Bought On (Optional)
+                    // 4. Purchased On Calendar Popup (Full Date / Month+Year / Year Only)
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "BOUGHT ON / PURCHASE DATE (OPTIONAL)",
+                                text = "PURCHASED ON / BOUGHT DATE (OPTIONAL)",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                listOf("Brand New / Today", "This Year", "1 Year Ago", "2+ Years Ago").forEach { opt ->
-                                    FilterChip(
-                                        selected = boughtOnOption == opt,
-                                        onClick = { boughtOnOption = opt },
-                                        label = { Text(opt, style = MaterialTheme.typography.labelSmall) }
-                                    )
-                                }
-                            }
+                            PurchaseDatePickerField(
+                                selectedTimestamp = purchaseDateTimestamp,
+                                precision = purchaseDatePrecision,
+                                onDateSelected = { ts, prec ->
+                                    purchaseDateTimestamp = ts
+                                    purchaseDatePrecision = prec
+                                },
+                                label = "Purchased On (Exact Date, Month & Year, or Year)",
+                                allowClear = true,
+                                testTagPrefix = "onboarding_purchase_date"
+                            )
                         }
                     }
 
@@ -781,16 +765,7 @@ fun OnboardingScreen(
 
                             Button(
                                 onClick = {
-                                    val yearInt = modelYearStr.toIntOrNull() ?: 2023
-                                    val now = System.currentTimeMillis()
-                                    val dayMs = 86400000L
-                                    val purchaseTimestamp = when (boughtOnOption) {
-                                        "This Year" -> now - dayMs * 90
-                                        "1 Year Ago" -> now - dayMs * 365
-                                        "2+ Years Ago" -> now - dayMs * 730
-                                        else -> now
-                                    }
-
+                                    val yearInt = selectedModelYear
                                     val finalModelName = if (vehicleModel.isNotBlank()) vehicleModel else "${selectedVehicleType.label} $yearInt"
 
                                     onComplete(
@@ -803,7 +778,8 @@ fun OnboardingScreen(
                                         finalModelName,
                                         yearInt,
                                         effectiveColor,
-                                        purchaseTimestamp,
+                                        purchaseDateTimestamp,
+                                        purchaseDatePrecision.name,
                                         numberPlate
                                     )
                                 },
